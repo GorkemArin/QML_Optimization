@@ -47,6 +47,27 @@ def test_model_all(weights_all, N):
 
 print('pyomo version:', pyomo.__version__)
 
+class Perceptron(Block):
+    
+    def __init__(self,
+                 numOfInputs: int,
+                 inputVarType: str = 'Binary',
+                 activationFunction: str = 'Binary Step'):
+        super()
+        self.numOfInputs = numOfInputs
+        self.inputVarType = inputVarType
+        self.activationFunction = activationFunction
+
+    def Formulate(self,
+                  inputs,
+                  outputs):
+        pass
+
+    def Pprint():
+        pass
+
+percepTest = Perceptron(5)
+
 # Params
 numOfInputs = 5
 Train_N = 100
