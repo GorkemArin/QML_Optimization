@@ -11,6 +11,8 @@ large-scale industrial applications.
 import pyomo
 import pyomo.environ as pyo
 from pyomo.environ import *
+from pyomo.core.base.block import _BlockData
+from pyomo.core.base.block import Block
 import numpy as np
 
 def train_function_3(x):
@@ -45,37 +47,85 @@ def test_model_all(weights_all, N):
     print('test_out:\t', test_out)
     print('error_count: ', error_count)
 
-print('pyomo version:', pyomo.__version__)
-
-class Perceptron(Block):
+#class Perceptron(pyo.Block):
     
+    # def __init__(self,
+    #              numOfInputs: int,
+    #              inputVarType: str = 'Binary',
+    #              activationFunction: str = 'Binary Step'):
+    #     self.numOfInputs = numOfInputs
+    #     self.inputVarType = inputVarType
+    #     self.activationFunction = activationFunction
+    #     super().__init__(concrete=True)
+
+class Perceptron(pyo.Block):
     def __init__(self,
                  numOfInputs: int,
                  inputVarType: str = 'Binary',
-                 activationFunction: str = 'Binary Step'):
-        super()
+                 activationFunction: str = 'Binary Step',
+                 **kwargs):  # catch kwargs like 'concrete=True'
+        kwargs['concrete'] = True
+        super().__init__(**kwargs)
+        #TODO: FIX ERROR!
+
+        # Save config
         self.numOfInputs = numOfInputs
         self.inputVarType = inputVarType
         self.activationFunction = activationFunction
 
-    def Formulate(self,
+    def objective(self):
+        return sum(model.e[i] for i in model.Ie) 
+
+    def Construct(self,
                   inputs,
-                  outputs):
-        pass
+                  outputs,
+                  epsilon=0.5):
+        
+        Train_N = len(inputs)
+        M = numOfInputs + 1 #Max possible value
+
+        self.Iw = Set(initialize = list(range(numOfInputs + 1)))
+        self.w = Var(self.Iw, domain=Reals, bounds=(-1, 1))
+
+        self.Iy = RangeSet(0, Train_N-1)
+        self.y = Var(self.Iy, domain=Binary)
+
+        self.Ie = RangeSet(0, Train_N-1)
+        self.e = Var(self.Iy, domain=Binary)
+        self.constraintList = pyo.ConstraintList()
+
+        for n, (input, output) in enumerate(zip(inputs, outputs)):
+            input = np.concatenate([input, [1]])
+            z_expr = sum(self.w[i] * input[i] for i in self.Iw)
+
+            self.constraintList.add(z_expr <= M * self.y[n])
+            self.constraintList.add(z_expr >= epsilon - M * (1 - self.y[n]))
+
+            self.constraintList.add(self.e[n] >= output - self.y[n])
+            self.constraintList.add(self.e[n] >= self.y[n] - output)
+
+            self.obj = pyo.Objective(rule=objective, sense=pyo.minimize)
 
     def Pprint():
         pass
 
-percepTest = Perceptron(5)
+print('pyomo version:', pyomo.__version__)
 
 # Params
 numOfInputs = 5
 Train_N = 100
 Test_N = 200
 
+testBlock = pyo.Block(concrete=True)
+
+percepBlock = Perceptron(numOfInputs)
+model = pyo.ConcreteModel()
 #weights = [f'w{i}' for i in range(numOfInputs + 1)]
 inputs, outputs = generate_data(Train_N)
-weights_num = 2 * np.random.rand(numOfInputs + 1) - 1 #Random from -1 to +1
+
+percepBlock.Construct(inputs, outputs)
+model.b1 = percepBlock
+model.obj = percepBlock.obj
 
 # print('inputs: ', inputs)
 # print('outputs:\t', outputs)
@@ -85,36 +135,36 @@ weights_num = 2 * np.random.rand(numOfInputs + 1) - 1 #Random from -1 to +1
 # print('error_count: ', test_model(inputs, weights_num, outputs))
 
 # Create a model
-model = pyo.ConcreteModel()
-M = numOfInputs + 1 #Max possible value
-epsilon = 0.5
+# # # model = pyo.ConcreteModel()
+# # # M = numOfInputs + 1 #Max possible value
+# # # epsilon = 0.5
 
-model.Iw = Set(initialize = list(range(numOfInputs + 1)))
-model.w = Var(model.Iw, domain=Reals, bounds=(-1, 1))
+# # # model.Iw = Set(initialize = list(range(numOfInputs + 1)))
+# # # model.w = Var(model.Iw, domain=Reals, bounds=(-1, 1))
 
-model.Iy = RangeSet(0, Train_N-1)
-model.y = Var(model.Iy, domain=Binary)
+# # # model.Iy = RangeSet(0, Train_N-1)
+# # # model.y = Var(model.Iy, domain=Binary)
 
-model.Ie = RangeSet(0, Train_N-1)
-model.e = Var(model.Iy, domain=Binary)
-model.constraintList = pyo.ConstraintList()
+# # # model.Ie = RangeSet(0, Train_N-1)
+# # # model.e = Var(model.Iy, domain=Binary)
+# # # model.constraintList = pyo.ConstraintList()
 
-for n, (input, output) in enumerate(zip(inputs, outputs)):
-    input = np.concatenate([input, [1]])
+# # # for n, (input, output) in enumerate(zip(inputs, outputs)):
+# # #     input = np.concatenate([input, [1]])
 
-    z_expr = sum(model.w[i] * input[i] for i in model.Iw)
-    # print("Added: ", z_expr <= M * model.y[n])
-    # print("Added: ", z_expr >= epsilon - M * (1 - model.y[n]))
+# # #     z_expr = sum(model.w[i] * input[i] for i in model.Iw)
+# # #     # print("Added: ", z_expr <= M * model.y[n])
+# # #     # print("Added: ", z_expr >= epsilon - M * (1 - model.y[n]))
 
-    model.constraintList.add(z_expr <= M * model.y[n])
-    model.constraintList.add(z_expr >= epsilon - M * (1 - model.y[n]))
+# # #     model.constraintList.add(z_expr <= M * model.y[n])
+# # #     model.constraintList.add(z_expr >= epsilon - M * (1 - model.y[n]))
 
-    model.constraintList.add(model.e[n] >= output - model.y[n])
-    model.constraintList.add(model.e[n] >= model.y[n] - output)
+# # #     model.constraintList.add(model.e[n] >= output - model.y[n])
+# # #     model.constraintList.add(model.e[n] >= model.y[n] - output)
 
-def objective(model):
-    return sum(model.e[i] for i in model.Ie) 
-model.obj = pyo.Objective(rule=objective, sense=pyo.minimize)
+# # # def objective(model):
+# # #     return sum(model.e[i] for i in model.Ie) 
+# # # model.obj = pyo.Objective(rule=objective, sense=pyo.minimize)
 
 solver = pyo.SolverFactory('gurobi')
 # Solve the problem
