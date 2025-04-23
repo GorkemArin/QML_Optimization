@@ -70,10 +70,10 @@ if __name__ == '__main__':
     inputs1, outputs1 = generate_data(Train_N, funcId=3)
     inputs2, outputs2 = generate_data(Train_N, funcId=1)
 
-    percepBlock1.Construct(inputs1, outputs1)
+    percepBlock1.Construct(inputs1, outputs1, binSensitivity=1/8, epsilon=0.25)
     model.b1 = percepBlock1.GetBlock()
 
-    percepBlock2.Construct(inputs2, outputs2)
+    percepBlock2.Construct(inputs2, outputs2, binSensitivity=1/8, epsilon=0.25)
     model.b2 = percepBlock2.GetBlock()
 
     model.b1.obj.deactivate()

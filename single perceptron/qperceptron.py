@@ -31,8 +31,8 @@ class Perceptron():
     
     def __GetCountAndOffsetOfBinaries(self, sensitivity):
         bottomLimit, topLimit = self.weightLimits
-        assert(topLimit > bottomLimit)
-        assert(sensitivity != 0)
+        assert topLimit > bottomLimit, 'top limit cannot be smaller than or equal to bottom limit'
+        assert sensitivity > 0, 'sensitivity must be a positive number'
         count = math.ceil(math.log2((topLimit - bottomLimit) / sensitivity + 1))
         return count, bottomLimit #bottom lim. is offset
     
@@ -42,6 +42,10 @@ class Perceptron():
                   epsilon=0.5,
                   binSensitivity=1/8):
         
+        check_sens = math.log2(binSensitivity)
+        assert int(check_sens) == check_sens, \
+            "binSensitivity must be a degree of 2. (neg. or positive) e.g. 1/2, 1/8"
+
         numerical_in =  type(inputs) != Var
         numerical_out = type(outputs) != Var
         #TO-DO: Branch the flow of the construct accordingly.
@@ -67,7 +71,7 @@ class Perceptron():
             self.w_expr.append(sum(block.w[iw, ibin] * (2**ibin) * binSensitivity for ibin in block.Iwbin) + binOffset)
             block.constraintList.add(self.w_expr[-1] <= self.weightLimits[1])
             block.constraintList.add(self.weightLimits[0] <= self.w_expr[-1])
-            
+
         # for i, wexp in enumerate(self.w_expr):
         #     print(f'w_expr{i}: \n', wexp) 
 
