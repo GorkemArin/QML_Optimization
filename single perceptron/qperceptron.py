@@ -8,76 +8,52 @@ including enhanced quadratic and nonlinear programming support, and are optimize
 large-scale industrial applications.
 '''
 
-import pyomo
 import pyomo.environ as pyo
 from pyomo.environ import *
-from pyomo.core.base.block import _BlockData
-from pyomo.core.base.block import Block
 import numpy as np
-
-def train_function_3(x):
-    return [int(xi[3] - xi[1] >= 1) for xi in x]
-
-def train_function_2(x):
-    return [int(xi[3]) for xi in x]
-
-def train_function_1(x):
-    return (np.sum(x, axis=1) >= 3).astype(int)
-
-def generate_data(N, funcId=1):
-    inputs = np.random.randint(0, 2, size=(N, numOfInputs))
-
-    if(funcId == 1):
-        outputs = train_function_1(inputs)
-    elif(funcId == 2):
-        outputs = train_function_2(inputs)
-    elif(funcId == 3):
-        outputs = train_function_3(inputs)
-
-    return inputs, outputs
-
-def feed_forward(input, weights, bias):
-    return (np.dot(input, weights) + 1 * bias > 0).astype(int)
-
-def test_model(input, weights, expected_outputs):
-    test_out = feed_forward(input, weights[:-1], weights[-1])
-    error_count = np.sum(test_out != expected_outputs)
-    print('outputs:\t', np.array(expected_outputs))
-    print('test_out:\t', test_out)
-    print('error_count: ', error_count)
-
-def test_model_all(weights_all, N, funcId):
-    inputs, outputs = generate_data(N, funcId)
-    test_out = feed_forward(inputs, weights_all[:-1], weights_all[-1])
-    error_count = np.sum(test_out != outputs)
-    print('outputs:\t', np.array(outputs))
-    print('test_out:\t', test_out)
-    print('error_count: ', error_count)
+import math
 
 class Perceptron():
     def __init__(self,
                  numOfInputs: int,
+                 weightLimits = (-1, 1),
                  inputVarType: str = 'Binary',
                  activationFunction: str = 'Binary Step'):
         self.numOfInputs = numOfInputs
+        self.weightLimits = weightLimits
         self.inputVarType = inputVarType
         self.activationFunction = activationFunction
         self.block = pyo.Block(concrete=True)
+        self.w_expr = []
 
     def objective(self, model):
         return sum(model.e[i] for i in model.Ie) 
-
+    
+    def __GetCountAndOffsetOfBinaries(self, sensitivity):
+        bottomLimit, topLimit = self.weightLimits
+        assert(topLimit > bottomLimit)
+        assert(sensitivity != 0)
+        count = math.ceil(math.log2((topLimit - bottomLimit) / sensitivity + 1))
+        return count, bottomLimit #bottom lim. is offset
+    
     def Construct(self,
                   inputs,
                   outputs,
-                  epsilon=0.5):
+                  epsilon=0.5,
+                  binSensitivity=1/8):
         
+        numerical_in =  type(inputs) != Var
+        numerical_out = type(outputs) != Var
+        #TO-DO: Branch the flow of the construct accordingly.
+
         block = self.block
         Train_N = len(inputs)
-        M = numOfInputs + 1 #Max possible value
+        M = self.numOfInputs + 1 # Max possible value or weight array length
+        binN, binOffset = self.__GetCountAndOffsetOfBinaries(binSensitivity)
 
-        block.Iw = Set(initialize = list(range(numOfInputs + 1)))
-        block.w = Var(block.Iw, domain=Reals, bounds=(-1, 1))
+        block.Iw = Set(initialize = list(range(M)))
+        block.Iwbin = Set(initialize = list(range(binN)))
+        block.w = Var(block.Iw, block.Iwbin, domain=Binary, bounds=(-1, 1))
 
         block.Iy = RangeSet(0, Train_N-1)
         block.y = Var(block.Iy, domain=Binary)
@@ -85,10 +61,20 @@ class Perceptron():
         block.Ie = RangeSet(0, Train_N-1)
         block.e = Var(block.Iy, domain=Binary)
         block.constraintList = pyo.ConstraintList()
+        
+        self.w_expr = []
+        for iw in block.Iw:
+            self.w_expr.append(sum(block.w[iw, ibin] * (2**ibin) * binSensitivity for ibin in block.Iwbin) + binOffset)
+            block.constraintList.add(self.w_expr[-1] <= self.weightLimits[1])
+            block.constraintList.add(self.weightLimits[0] <= self.w_expr[-1])
+            
+        # for i, wexp in enumerate(self.w_expr):
+        #     print(f'w_expr{i}: \n', wexp) 
 
         for n, (input, output) in enumerate(zip(inputs, outputs)):
             input = np.concatenate([input, [1]])
-            z_expr = sum(block.w[i] * input[i] for i in block.Iw)
+            
+            z_expr = sum(self.w_expr[i] * input[i] for i in block.Iw)
 
             block.constraintList.add(z_expr <= M * block.y[n])
             block.constraintList.add(z_expr >= epsilon - M * (1 - block.y[n]))
@@ -98,118 +84,12 @@ class Perceptron():
 
         block.obj = pyo.Objective(rule=self.objective, sense=pyo.minimize)
 
+    def GetTrainedWeights(self):
+        return [pyo.value(w) for w in self.w_expr]
+
     def GetBlock(self) -> pyo.Block:
         return self.block
 
     def Pprint(self):
         pass
 
-print('pyomo version:', pyomo.__version__)
-
-# Params
-numOfInputs = 5
-Train_N = 100
-Test_N = 200
-
-percepBlock1 = Perceptron(numOfInputs)
-percepBlock2 = Perceptron(numOfInputs)
-model = pyo.ConcreteModel()
-
-inputs1, outputs1 = generate_data(Train_N, funcId=3)
-inputs2, outputs2 = generate_data(Train_N, funcId=1)
-
-percepBlock1.Construct(inputs1, outputs1)
-model.b1 = percepBlock1.GetBlock()
-
-percepBlock2.Construct(inputs2, outputs2)
-model.b2 = percepBlock2.GetBlock()
-
-model.b1.obj.deactivate()
-model.b2.obj.deactivate()
-model.obj = Objective(expr=model.b1.obj.expr + model.b2.obj.expr)
-
-solver = pyo.SolverFactory('gurobi')
-
-# Solve the problem
-result = solver.solve(model)
-
-# model.pprint()
-# model.display()
-
-print('Status:', result.solver.status)
-print('Termination Condition:', result.solver.termination_condition)
-
-trained_weights_1 = [pyo.value(model.b1.w[wi]) for wi in model.b1.Iw]
-print('Optimal w1:', trained_weights_1)
-trained_weights_2 = [pyo.value(model.b2.w[wi]) for wi in model.b2.Iw]
-print('Optimal w2:', trained_weights_2)
-# print('Optimal e:', [pyo.value(model.e[ei]) for ei in model.Ie])
-# print('Optimal y:', [pyo.value(model.y[yi]) for yi in model.Iy])
-print('Optimal Objective:', pyo.value(model.b1.obj))
-
-print('\n## Test ##')
-#test_model(inputs, trained_weights, outputs)
-test_model_all(trained_weights_1, Test_N, funcId=3)
-test_model_all(trained_weights_2, Test_N, funcId=1)
-
-
-
-
-##### REMAINING CODE #####
-
-# print('inputs: ', inputs)
-# print('outputs:\t', outputs)
-
-# test_out = feed_forward(inputs, weights_num[:-1], weights_num[-1])
-# print('test_out:\t', test_out)
-# print('error_count: ', test_model(inputs, weights_num, outputs))
-
-# Create a model
-# # # model = pyo.ConcreteModel()
-# # # M = numOfInputs + 1 #Max possible value
-# # # epsilon = 0.5
-
-# # # model.Iw = Set(initialize = list(range(numOfInputs + 1)))
-# # # model.w = Var(model.Iw, domain=Reals, bounds=(-1, 1))
-
-# # # model.Iy = RangeSet(0, Train_N-1)
-# # # model.y = Var(model.Iy, domain=Binary)
-
-# # # model.Ie = RangeSet(0, Train_N-1)
-# # # model.e = Var(model.Iy, domain=Binary)
-# # # model.constraintList = pyo.ConstraintList()
-
-# # # for n, (input, output) in enumerate(zip(inputs, outputs)):
-# # #     input = np.concatenate([input, [1]])
-
-# # #     z_expr = sum(model.w[i] * input[i] for i in model.Iw)
-# # #     # print("Added: ", z_expr <= M * model.y[n])
-# # #     # print("Added: ", z_expr >= epsilon - M * (1 - model.y[n]))
-
-# # #     model.constraintList.add(z_expr <= M * model.y[n])
-# # #     model.constraintList.add(z_expr >= epsilon - M * (1 - model.y[n]))
-
-# # #     model.constraintList.add(model.e[n] >= output - model.y[n])
-# # #     model.constraintList.add(model.e[n] >= model.y[n] - output)
-
-# # # def objective(model):
-# # #     return sum(model.e[i] for i in model.Ie) 
-# # # model.obj = pyo.Objective(rule=objective, sense=pyo.minimize)
-
-# model.x = pyo.Var(within=pyo.NonNegativeReals)
-# model.y = pyo.Var(within=pyo.NonNegativeReals)
-# # Define objective
-# model.obj = pyo.Objective(expr=model.x + model.y, sense=pyo.minimize)
-# # Define constraints
-# model.con1 = pyo.Constraint(expr=model.x + 2 * model.y >= 4)
-# model.con2 = pyo.Constraint(expr=model.x - model.y <= 1)
-# # Select solver
-# solver = pyo.SolverFactory('gurobi')
-# # Solve the problem
-# result = solver.solve(model)
-# # Display results
-# print('Status:', result.solver.status)
-# print('Termination Condition:', result.solver.termination_condition)
-# print('Optimal x:', pyo.value(model.x))
-# print('Optimal y:', pyo.value(model.y))
-# print('Optimal Objective:', pyo.value(model.obj))
