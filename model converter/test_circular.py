@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 from HUBO_Conversion import train_optimizer_HUBO
+from QUBO_Conversion import train_optimizer_QUBO
 import torch.nn.functional as F
 import datetime
 
@@ -94,7 +95,7 @@ class SimpleNN(nn.Module):
 # Dummy dataset: 1000 samples, 10 features, 2 output classes
 # Label: 1 if inside circle, 0 otherwise
 radius = 1
-X = torch.randn(1000, 2)
+X = torch.randn(10, 2)
 y = ((X[:, 0]**2 + X[:, 1]**2) <= radius**2).long()
 
 X_test = torch.randn(1000, 2)
@@ -116,9 +117,14 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 before_train = datetime.datetime.now()
-losses = train_gd(model, X, y)
-# losses = train_optimizer_HUBO(model, X, y)
+
+
+# losses = train_gd(model, X, y)
+losses = train_optimizer_QUBO(model, X, y)
+
+
 after_train = datetime.datetime.now()
+
 # exit()
 
 # ----- 5. Evaluation -----

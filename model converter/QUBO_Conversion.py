@@ -1,7 +1,9 @@
 import torch.nn as nn
 from torch.fx import symbolic_trace
-from pyqubo import Binary
+from pyqubo import Binary, Constraint
 import numpy as np
+
+from Gurobi_Solver import solve_gurobi
 
 def layer_to_expression(layer: nn.modules.linear.Linear, layer_index: int, bit_depth: int):
     in_features = layer.in_features
@@ -34,17 +36,17 @@ def layer_to_expression(layer: nn.modules.linear.Linear, layer_index: int, bit_d
         
     return W_expr.T, (layer.bias is not None)
 
-def hidden_layer(nodes_count: int, bit_depth: int, unique_index: int):
+def hidden_layer(units_count: int, bit_depth: int, unique_index: int):
     Δ = 0.1  # scaling step
     offset = (2 ** (bit_depth - 1)) * Δ  # center around 0
 
-    hidden = np.array()
-    for i in range(nodes_count):
+    hidden = []
+    for i in range(units_count):
         bits = [Binary(f"h{unique_index}_{i}_bit{k}") for k in range(bit_depth)]
         expr = sum((2**k) * bits[k] for k in range(bit_depth)) * Δ - offset
         hidden.append(expr)
     
-    return hidden
+    return np.array(hidden)
 
 def get_polynomial_of_activation_func(func: str):
     if func == 'relu':
@@ -55,7 +57,9 @@ def get_polynomial_of_activation_func(func: str):
         return lambda x: x - (x**3)/3
     
 def get_equality_constraint(exp_A, exp_B):
-    return (exp_A - exp_B)**2
+    # diff = exp_A - exp_B
+    # return np.dot(diff, diff)
+    return Constraint(sum(exp_A - exp_B), 'a constraint')
 
 def train_optimizer_QUBO(model: nn.Module, X, y, bitdepth = 3):
 
@@ -98,35 +102,32 @@ def train_optimizer_QUBO(model: nn.Module, X, y, bitdepth = 3):
     train_count = len(X)
     train_indx = 1
     losses = []
-    for x_i, x, y_t in enumerate(zip(X,y)):
+    hidden_unique_indx = 0  # to follow a unique index
+    for x, y_target in zip(X,y):
         cur_layer = x
         for i, exp in enumerate(expressions_list):
-            if(isinstance(exp, np.ndarray)):
+
+            if(isinstance(exp, np.ndarray)): # linear network
                 if(cur_layer.shape[0] == exp.shape[0] - 1):
                     cur_layer = np.concatenate((cur_layer, [1])) # add one for bias
                 output = np.dot(cur_layer, exp)
-                hidden = hidden_layer(output.shape[0], bitdepth, x_i * len(expressions_list) + i)
-                losses.append(get_equality_constraint(output, hidden))
-                cur_layer = hidden
-            elif(callable(exp) and exp.__name__ == "<lambda>"):
+            elif(callable(exp) and exp.__name__ == "<lambda>"): # activation function
                 output = exp(cur_layer)
-                hidden = hidden_layer(output.shape[0], bitdepth, x_i * len(expressions_list) + i)
-                losses.append(get_equality_constraint(output, hidden))
-                cur_layer = hidden
-            else:
+            else: # invalid
                 raise NameError(f'Invalid expression: {exp}')
+            
+            # if last expression is reached, no need for a hidden layer.
+            # Equalize it to output.
+            if (i == len(expressions_list) - 1): # last expression
+                losses.append(get_equality_constraint(output, np.array(y_target)))
+                continue
 
-#### TODO...
-
-        y_target = np.array(y_t)
-        if(np.isscalar(y_target) or y_target.shape == ()):
-            temp = np.zeros(y_pred.shape)
-            temp[y_target] = 1
-            y_target = temp
-
-        mse_loss = np.sum((y_pred - y_target)**2)
-        losses.append(mse_loss)
-        
+            # if medium layer, create a new hidden layer and equalize it.
+            hidden = hidden_layer(output.shape[0], bitdepth, hidden_unique_indx)
+            hidden_unique_indx += 1
+            losses.append(get_equality_constraint(output, hidden))
+            cur_layer = hidden
+                    
         print(f'train ff calculated: {train_indx}/{train_count}.')
         train_indx += 1
 
@@ -141,7 +142,13 @@ def train_optimizer_QUBO(model: nn.Module, X, y, bitdepth = 3):
     print('model: ', type(model))
     # Convert to QUBO for a solver (higher-order terms will be reduced internally)
     qubo, offset = model.to_qubo()
-    print('qubo, offset: ', type(qubo), type(offset))
+    # print('qubo, offset: ', type(qubo), type(offset))
+    # print('offset:', offset)
+    # print('qubo model:', qubo)
+
+    solution = solve_gurobi(qubo)
+
+    print(solution)
 
     exit()
 
