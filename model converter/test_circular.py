@@ -85,7 +85,7 @@ class SimpleNN(nn.Module):
             nn.Linear(hidden_sizes[1], output_size)
         )
 
-        self.testfc = nn.Linear(input_size, input_size)
+        # self.testfc = nn.Linear(input_size, input_size)
 
     def forward(self, x):
         return self.model(x)
@@ -118,6 +118,11 @@ optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 before_train = datetime.datetime.now()
 
+dummy_dict = {'x':0, 'y':1}
+from Solution_Wrapper import wrap_solution
+wrap_solution(model, dummy_dict)
+
+exit() # remove it
 
 # losses = train_gd(model, X, y)
 losses = train_optimizer_QUBO(model, X, y)
@@ -125,7 +130,7 @@ losses = train_optimizer_QUBO(model, X, y)
 
 after_train = datetime.datetime.now()
 
-# exit()
+# exit() # remove it
 
 # ----- 5. Evaluation -----
 with torch.no_grad():
