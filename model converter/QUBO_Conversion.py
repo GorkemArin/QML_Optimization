@@ -60,7 +60,8 @@ def hidden_layer(units_count: int, bit_depth: int, unique_index: int):
 
 def get_polynomial_of_activation_func(func: str):
     if func == 'relu':
-        return lambda x: x/2 + 3*(x**2)/4 - (x**4) / 4
+        return lambda x: x/2 + 3*(x**2)/4
+        # return lambda x: x/2 + 3*(x**2)/4 - (x**4) / 4 # original approx.
     elif func == 'sigmoid':
         return lambda x: 1/2 + 3*x/4 - (x**3)/4
     elif func == 'tanh':
@@ -153,25 +154,30 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
     print('Compiling...')
     # Compile to PyQUBO model
     loss_model = total_loss.compile()
-    print('model: ', type(loss_model))
-    # Convert to QUBO for a solver (higher-order terms will be reduced internally)
-
 
     qubo, offset = loss_model.to_qubo()
+    return qubo, loss_model
+
+    ##### Rest is residual
+    
+
+    #print('model: ', type(loss_model))
+    # Convert to QUBO for a solver (higher-order terms will be reduced internally)
+
     # print('qubo, offset: ', type(qubo), type(offset))
     # print('offset:', offset)
     # print('qubo model:', qubo)
     
-    print('Total Loss')
-    print(total_loss)
+    # print('Total Loss')
+    # # print(total_loss)
 
-    print('QUBO:')
-    print(qubo)
+    # print('QUBO:')
+    # print(qubo)
 
-    solution = solve_gurobi(qubo)
-    wrap_solution(nn_model, solution, bitdepth)
+    # solution = solve_gurobi(qubo)
+    # wrap_solution(nn_model, solution, bitdepth)
 
-    dec = loss_model.decode_sample(solution, vartype='BINARY')
+    # dec = loss_model.decode_sample(solution, vartype='BINARY')
 
     # print('Broken Constraints')
     # # print(dec.constraints())
@@ -192,5 +198,3 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
     # with torch.no_grad():
     #     for name, param in model.named_parameters():
     #         param.fill_(0.5)
-
-    return [-1]

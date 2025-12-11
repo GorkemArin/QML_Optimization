@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
-from HUBO_Conversion import train_optimizer_HUBO
-from QUBO_Conversion import train_optimizer_QUBO
-from Solution_Wrapper import wrap_solution
+from Model_Based_Solver import ModelBasedSolver
+# from HUBO_Conversion import train_optimizer_HUBO
+# from QUBO_Conversion import train_optimizer_QUBO
+# from Solution_Wrapper import wrap_solution
 
 import torch.nn.functional as F
 import datetime
@@ -80,7 +81,8 @@ class SimpleNN(nn.Module):
         super().__init__()
         
         self.model = nn.Sequential(
-            nn.Linear(input_size, output_size)
+            nn.Linear(input_size, output_size),
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -98,12 +100,6 @@ X_test = torch.randn(1000, 2)
 y_test = ((X_test[:, 0] - 0.5*X_test[:, 1]) <= 0.5).long()
 
 
-#y = (X[:, 0] > 0.5).long()
-
-# print(X, y)
-# plot(X[:, 0], X[:, 1], y==1)
-
-
 # ----- 3. Initialize Model, Loss, Optimizer -----
 input_size = 2
 # hidden_sizes = [16, 32]
@@ -118,8 +114,13 @@ if solver == 'adam':
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     train_gd(model, X, Y)
-elif solver=='gurobi':
-    train_optimizer_QUBO(model, X, Y, bitdepth=4)
+else:
+    model_based_solver = ModelBasedSolver()
+    if model_based_solver.train(solver, model, X, Y, bitdepth=3) == 1:
+        raise Exception(model_based_solver.error_message)
+    model_based_solver.pprint_times()
+
+    # train_optimizer_QUBO(model, X, Y, bitdepth=4)
 
 after_train = datetime.datetime.now()
 
