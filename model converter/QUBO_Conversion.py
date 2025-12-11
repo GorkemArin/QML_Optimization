@@ -67,8 +67,10 @@ def get_polynomial_of_activation_func(func: str):
         return lambda x: x - (x**3)/3
     
 def get_equality_constraint(exp_A, exp_B):
-    diff = exp_A - exp_B
-    return [Constraint(equality, '') for equality in diff]
+    # diff = exp_A - exp_B
+    # return [Constraint(equality, '') for equality in diff]
+
+    return sum((a - b)**2 for (a, b) in zip(exp_A, exp_B))
 
 def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
     traced = symbolic_trace(nn_model)
@@ -130,13 +132,13 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
             # if last expression is reached, no need for a hidden layer.
             # Equalize it to output.
             if (i == len(expressions_list) - 1): # last expression
-                losses.extend(get_equality_constraint(output, np.array(y_target)))
+                losses.append(get_equality_constraint(output, np.array(y_target)))
                 continue
 
             # if medium layer, create a new hidden layer and equalize it.
             hidden = hidden_layer(output.shape[0], bitdepth, hidden_unique_indx)
             hidden_unique_indx += 1
-            losses.extend(get_equality_constraint(output, hidden))
+            losses.append(get_equality_constraint(output, hidden))
             cur_layer = hidden
                     
         print(f'train ff calculated: {train_indx}/{train_count}.')
@@ -171,9 +173,9 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
 
     dec = loss_model.decode_sample(solution, vartype='BINARY')
 
-    print('Broken Constraints')
-    # print(dec.constraints())
-    print(dec.constraints(only_broken=True))
+    # print('Broken Constraints')
+    # # print(dec.constraints())
+    # print(dec.constraints(only_broken=True))
 
     #print(solution)
 

@@ -47,7 +47,7 @@ def plot_double(x1, y1, training_cond, x2, y2, output_cond):
     axes[1].set_ylabel('Y-axis')
 
     plt.tight_layout()
-    plt.show()
+    plt.show(block=True)
 
 def train_gd(model, X, y):
     # ----- 4. Training Loop -----
@@ -91,11 +91,11 @@ class SimpleNN(nn.Module):
 # Dummy dataset: 1000 samples, 10 features, 2 output classes
 
 radius = 1
-X = torch.randn(10, 2)
+X = torch.randn(30, 2)
 Y = ((X[:, 0] - 0.5*X[:, 1]) <= 0.5).long()
 
 X_test = torch.randn(1000, 2)
-y_test = ((X[:, 0] - 0.5*X[:, 1]) <= 0.5).long()
+y_test = ((X_test[:, 0] - 0.5*X_test[:, 1]) <= 0.5).long()
 
 
 #y = (X[:, 0] > 0.5).long()
@@ -136,13 +136,15 @@ for i in range(1):
 with torch.no_grad():
     preds = torch.argmax(model.forward(X), dim=1)  # shape [1000]
     accuracy = (preds == Y).float().mean()
-    print(f'Final Accuracy: {accuracy:.2f}')
+    print(f'Training Accuracy: {accuracy*100:.2f}%')
     #print(f'Final Loss: ', losses[-1])
     
 print_time_diff(before_train, after_train)
 
-final_out = torch.argmax(model.forward(X_test), dim=1)
-plot_double(X[:, 0], X[:, 1], Y==1, X_test[:, 0], X_test[:, 1], final_out==1)
+test_out = torch.argmax(model.forward(X_test), dim=1)
+test_accuracy = (test_out == y_test).float().mean()
+print(f'Test Accuracy: {test_accuracy*100:.2f}%')
+plot_double(X[:, 0], X[:, 1], Y==1, X_test[:, 0], X_test[:, 1], test_out==1)
 
 torch.save(model.state_dict(), 'test_circular_model.pt')
 
