@@ -1,6 +1,7 @@
 import datetime
 import numpy as np
 import torch.nn as nn
+import torch.optim as optim
 
 from QUBO_Conversion import train_optimizer_QUBO
 from Solution_Wrapper import wrap_solution
@@ -23,7 +24,9 @@ class ModelBasedSolver:
 
         self.decoded_model = None
 
-    def pprint_times(self):
+    def pprint_times(self, title_on=True):
+        if title_on:
+            print('\n== Timings ==')
         print(f'Modeling Time: {self.modeling_time:.3f} s')
         print(f'Solving Time: {self.solving_time:.3f} s')
         print(f'Total Training Time: {self.total_training_time:.3f} s')
@@ -57,7 +60,33 @@ class ModelBasedSolver:
         self.status = 0
 
         return self.status
-            
+
+
+class ClassicalSolver:
+    def train_gd(model, X, y):
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(model.parameters(), lr=0.01)
+        # ----- 4. Training Loop -----
+        epochs = 50
+        losses = []
+        for epoch in range(epochs):
+            optimizer.zero_grad()           # reset gradients
+            y_pred = model.forward(X)              # forward pass
+
+            loss = criterion(y_pred, y)    # compute loss
+
+            loss.backward()                 # backpropagation
+            optimizer.step()                # update weights
+
+            losses.append(loss.item())
+            if epoch < 5 or (epoch + 1) % 5 == 0:
+                print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
+                # for name, param in model.named_parameters():
+                #     if param.requires_grad:
+                #         print(f"{name} → mean: {param.data.mean():.4f}, grad mean: {param.grad.mean():.4f}")
+        return losses    
+    
+
 
     
 

@@ -3,3 +3,17 @@ Test 1.2
 Training Accuracy: 100.00%
 Training time: 78.318 seconds
 Test Accuracy: 95.90%
+
+Test 1.3
+== Timings ==
+Modeling Time: 0.051 s
+Solving Time: 79.641 s
+Total Training Time: 79.694 s
+
+== Evaluation ==
+Weights after training:
+layer 0:
+ [[ 0.2857143  -0.14285715]
+ [-0.2857143   0.14285715]]
+Training Accuracy: 100.00%
+Test Accuracy: 100.00%

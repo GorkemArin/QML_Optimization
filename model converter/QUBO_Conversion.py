@@ -89,7 +89,7 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
         # functional operation
             executed_layers.append(node.target)  # function object, e.g., F.relu
 
-    print('executed layers:', executed_layers)
+    print('Executed layers:', executed_layers)
 
     bias_included = False
     expressions_list = []
@@ -142,16 +142,16 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
             losses.append(get_equality_constraint(output, hidden))
             cur_layer = hidden
                     
-        print(f'train ff calculated: {train_indx}/{train_count}.')
+        print(f'Modeling in progress: {train_indx}/{train_count}.')
         train_indx += 1
 
     # Sum all loss functions into a single HUBO
     total_loss = sum(losses)
-    print('total loss', total_loss)
-    print('Type of single loss: ', type(losses[0]))
+    # print('total loss', total_loss)
+    # print('Type of single loss: ', type(losses[0]))
     # print('Total loss calculated: ', total_loss)
 
-    print('Compiling...')
+    print('Compiling the model...')
     # Compile to PyQUBO model
     loss_model = total_loss.compile()
 
@@ -159,7 +159,7 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
     return qubo, loss_model
 
     ##### Rest is residual
-    
+
 
     #print('model: ', type(loss_model))
     # Convert to QUBO for a solver (higher-order terms will be reduced internally)

@@ -16,12 +16,15 @@ def print_time_diff(start: datetime, end: datetime):
 
 # ----- 1. Define the Neural Network -----
 class SimpleNN(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, hidden_sizes, output_size):
         super().__init__()
         
         self.model = nn.Sequential(
-            nn.Linear(input_size, output_size),
-            nn.ReLU()
+            nn.Linear(input_size, hidden_sizes[0]),
+            # nn.ReLU(),
+            nn.Linear(hidden_sizes[0], hidden_sizes[1]),
+            # nn.ReLU(),
+            nn.Linear(hidden_sizes[1], output_size)
         )
 
     def forward(self, x):
@@ -31,25 +34,27 @@ class SimpleNN(nn.Module):
 # ---- 2. Set Variables -----
 
 ### Data
-train_data_size = 30
+train_data_size = 5
 test_data_size = 1000
+radius = 1
 
 ### Network
 input_size = 2
 output_size = 2
-model = SimpleNN(input_size, output_size)
+hidden_sizes = [4, 8]
+model = SimpleNN(input_size, hidden_sizes, output_size)
 
 ### Solver
-solver = 'gurobi'
-bitdepth = 4
+solver = 'adam'
+bitdepth = 4  # for model-based
 
 # ----- 3. Create Datasets -----
 
 X = torch.randn(train_data_size, 2)
-Y = ((X[:, 0] - 0.5*X[:, 1]) <= 0.5).long()
+Y = ((X[:, 0]**2 + X[:, 1]**2) <= radius**2).long()
 
 X_test = torch.randn(test_data_size, 2)
-Y_test = ((X_test[:, 0] - 0.5*X_test[:, 1]) <= 0.5).long()
+Y_test = ((X_test[:, 0]**2 + X_test[:, 1]**2) <= radius**2).long()
 
 # ----- 4. Train the Model -----
 
