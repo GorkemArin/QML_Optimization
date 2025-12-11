@@ -76,15 +76,11 @@ def print_time_diff(start: datetime, end: datetime):
 
 # ----- 1. Define the Neural Network -----
 class SimpleNN(nn.Module):
-    def __init__(self, input_size, hidden_sizes, output_size):
+    def __init__(self, input_size, output_size):
         super().__init__()
         
         self.model = nn.Sequential(
-            nn.Linear(input_size, hidden_sizes[0]),
-            nn.ReLU(),
-            nn.Linear(hidden_sizes[0], hidden_sizes[1]),
-            nn.ReLU(),
-            nn.Linear(hidden_sizes[1], output_size)
+            nn.Linear(input_size, output_size)
         )
 
     def forward(self, x):
@@ -93,13 +89,14 @@ class SimpleNN(nn.Module):
 
 # ----- 2. Create Dataset -----
 # Dummy dataset: 1000 samples, 10 features, 2 output classes
-# Label: 1 if inside circle, 0 otherwise
+
 radius = 1
-X = torch.randn(20, 2)
-y = ((X[:, 0]**2 + X[:, 1]**2) <= radius**2).long()
+X = torch.randn(10, 2)
+Y = ((X[:, 0] - 0.5*X[:, 1]) <= 0.5).long()
 
 X_test = torch.randn(1000, 2)
-y_test = ((X[:, 0]**2 + X[:, 1]**2) <= radius**2).long()
+y_test = ((X[:, 0] - 0.5*X[:, 1]) <= 0.5).long()
+
 
 #y = (X[:, 0] > 0.5).long()
 
@@ -109,10 +106,10 @@ y_test = ((X[:, 0]**2 + X[:, 1]**2) <= radius**2).long()
 
 # ----- 3. Initialize Model, Loss, Optimizer -----
 input_size = 2
-hidden_sizes = [16, 32]
+# hidden_sizes = [16, 32]
 output_size = 2
 
-model = SimpleNN(input_size, hidden_sizes, output_size)
+model = SimpleNN(input_size, output_size)
 
 solver = 'gurobi'
 before_train = datetime.datetime.now()
@@ -120,16 +117,16 @@ before_train = datetime.datetime.now()
 if solver == 'adam':
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.01)
-    train_gd(model, X, y)
+    train_gd(model, X, Y)
 elif solver=='gurobi':
-    train_optimizer_QUBO(model, X, y)
+    train_optimizer_QUBO(model, X, Y, bitdepth=4)
 
 after_train = datetime.datetime.now()
 
 print('** weights after training')
 linears = [m for m in model.modules() if isinstance(m, nn.Linear)]
 
-for i in range(3):
+for i in range(1):
     weights_2d = linears[i].weight.detach().cpu().numpy()
     print(i, weights_2d)
 
@@ -138,14 +135,14 @@ for i in range(3):
 # ----- 5. Evaluation -----
 with torch.no_grad():
     preds = torch.argmax(model.forward(X), dim=1)  # shape [1000]
-    accuracy = (preds == y).float().mean()
+    accuracy = (preds == Y).float().mean()
     print(f'Final Accuracy: {accuracy:.2f}')
     #print(f'Final Loss: ', losses[-1])
     
 print_time_diff(before_train, after_train)
 
 final_out = torch.argmax(model.forward(X_test), dim=1)
-plot_double(X[:, 0], X[:, 1], y==1, X_test[:, 0], X_test[:, 1], final_out==1)
+plot_double(X[:, 0], X[:, 1], Y==1, X_test[:, 0], X_test[:, 1], final_out==1)
 
 torch.save(model.state_dict(), 'test_circular_model.pt')
 
