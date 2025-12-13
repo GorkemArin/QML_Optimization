@@ -21,9 +21,9 @@ class SimpleNN(nn.Module):
         
         self.model = nn.Sequential(
             nn.Linear(input_size, hidden_sizes[0]),
-            # nn.ReLU(),
+            nn.ReLU(),
             nn.Linear(hidden_sizes[0], hidden_sizes[1]),
-            # nn.ReLU(),
+            nn.ReLU(),
             nn.Linear(hidden_sizes[1], output_size)
         )
 
@@ -34,14 +34,14 @@ class SimpleNN(nn.Module):
 # ---- 2. Set Variables -----
 
 ### Data
-train_data_size = 5
+train_data_size = 500
 test_data_size = 1000
 radius = 1
 
 ### Network
 input_size = 2
 output_size = 2
-hidden_sizes = [4, 8]
+hidden_sizes = [16, 32]
 model = SimpleNN(input_size, hidden_sizes, output_size)
 
 ### Solver

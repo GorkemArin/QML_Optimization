@@ -31,7 +31,7 @@ class SimpleNN(nn.Module):
 # ---- 2. Set Variables -----
 
 ### Data
-train_data_size = 30
+train_data_size = 5
 test_data_size = 1000
 
 ### Network

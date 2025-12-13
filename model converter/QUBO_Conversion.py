@@ -73,6 +73,62 @@ def get_equality_constraint(exp_A, exp_B):
 
     return sum((a - b)**2 for (a, b) in zip(exp_A, exp_B))
 
+slack_unique_id = 0
+def get_slack_variable(bitdepth: int, max_value: float, count:int):
+    global slack_unique_id
+    Δ = max_value / ((2**bitdepth)-1)
+    slack_vars = []
+    for i in range(count):
+        bits = [Binary(f's{slack_unique_id}_bit{k}') for k in range(bitdepth)]
+        slack = sum((2**k) * bits[k] for k in range(bitdepth)) * Δ
+        slack_vars.append(slack)
+        slack_unique_id += 1
+    return np.array(slack_vars)
+
+def is_array_like(x):
+    return isinstance(x, (list, tuple, np.ndarray))
+
+# A <= B --> A - B + s = 0 --> +(A - B + s)^2
+def get_LEQ_inequality_constraint(exp_A, exp_B, bitdepth=3):
+    if(is_array_like(exp_A)):
+        count = len(exp_A)
+    elif(is_array_like(exp_B)):
+        count = len(exp_B)
+    else:
+        count = 1
+    slack = get_slack_variable(bitdepth, max_value=7, count=count)
+    return sum((a - b + s)**2 for (a, b, s) in zip(exp_A, exp_B, slack))
+
+# A => B
+def get_GEQ_inequality_constraint(exp_A, exp_B, bitdepth=3):
+    return get_LEQ_inequality_constraint(exp_B, exp_A, bitdepth)
+
+
+# y = ReLU(x) = max(0,x)
+
+# y >= x
+# y >= 0
+# y <= x + M(1-aux)
+# y <= M*aux
+# aux in {0,1}
+aux_unique_id = 0
+def get_ReLU_constraints(x, y):
+    global aux_unique_id
+    M = 10
+    
+    aux = []
+    for i in range(len(y)):
+        aux.append(Binary(f'aux{aux_unique_id}') * M)
+        aux_unique_id += 1
+    aux = np.array(aux)
+    
+    c1 = get_GEQ_inequality_constraint(y, x)
+    c2 = get_GEQ_inequality_constraint(y, np.zeros(y.shape))
+    c3 = get_LEQ_inequality_constraint(y, x + M * (1-aux))
+    c4 = get_LEQ_inequality_constraint(y, aux)
+
+    return c1 + c2 + c3 + c4
+
 def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
     traced = symbolic_trace(nn_model)
     print(traced.graph)
@@ -104,7 +160,8 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
             if(i == 0):
                 bias_included = b_incld
         elif(layer_name.startswith('relu')):
-            expressions_list.append(get_polynomial_of_activation_func('relu'))
+            expressions_list.append('relu')
+            #expressions_list.append(get_polynomial_of_activation_func('relu'))
         elif(layer_name.startswith('sigmoid')):
             expressions_list.append(get_polynomial_of_activation_func('sigmoid'))
         elif(layer_name.startswith('tanh')):
@@ -125,6 +182,15 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
                 if(cur_layer.shape[0] == exp.shape[0] - 1):
                     cur_layer = np.concatenate((cur_layer, [1])) # add one for bias
                 output = np.dot(cur_layer, exp)
+            elif(isinstance(exp, str) and exp == 'relu'):
+                if (i == len(expressions_list) - 1): # last expression
+                    hidden = np.array(y_target)
+                else:
+                    hidden = hidden_layer(cur_layer.shape[0], bitdepth, hidden_unique_indx)
+                    hidden_unique_indx += 1
+                losses.append(get_ReLU_constraints(cur_layer, hidden))
+                cur_layer = hidden
+                continue
             elif(callable(exp) and exp.__name__ == "<lambda>"): # activation function
                 output = exp(cur_layer)
             else: # invalid
