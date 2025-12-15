@@ -8,6 +8,7 @@ from Solution_Wrapper import wrap_solution
 
 # Solvers
 from Gurobi_Solver import solve_gurobi
+from Kipu_Solver import solve_kipu
 
 def get_time_diff(start: datetime, end: datetime) -> float:
     diff = end - start
@@ -44,6 +45,8 @@ class ModelBasedSolver:
 
         if solver == 'gurobi':
             solution = solve_gurobi(qubo)
+        elif solver.startswith('kipu'):
+            solution = solve_kipu(qubo, solver)
         else:
             self.status = 1
             self.error_message = f'Invalid solver: {solver}'

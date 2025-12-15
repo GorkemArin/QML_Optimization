@@ -20,8 +20,7 @@ class SimpleNN(nn.Module):
         super().__init__()
         
         self.model = nn.Sequential(
-            nn.Linear(input_size, output_size),
-            nn.ReLU()
+            nn.Linear(input_size, output_size)
         )
 
     def forward(self, x):
@@ -31,7 +30,7 @@ class SimpleNN(nn.Module):
 # ---- 2. Set Variables -----
 
 ### Data
-train_data_size = 5
+train_data_size = 100
 test_data_size = 1000
 
 ### Network
@@ -40,8 +39,8 @@ output_size = 2
 model = SimpleNN(input_size, output_size)
 
 ### Solver
-solver = 'gurobi'
-bitdepth = 4
+solver = 'kipu-miray'
+bitdepth = 3
 
 # ----- 3. Create Datasets -----
 

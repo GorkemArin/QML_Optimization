@@ -222,6 +222,8 @@ def train_optimizer_QUBO(nn_model: nn.Module, X, Y, bitdepth = 3):
     loss_model = total_loss.compile()
 
     qubo, offset = loss_model.to_qubo()
+    print(qubo)
+
     return qubo, loss_model
 
     ##### Rest is residual
