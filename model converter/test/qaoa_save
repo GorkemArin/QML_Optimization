@@ -1,0 +1,6 @@
+from qiskit_ibm_runtime import QiskitRuntimeService
+ 
+QiskitRuntimeService.save_account(
+token="ApiKey-82ff9f63-ed14-43fb-bd5b-704abdbfaa38", # Use the 44-character API_KEY you created and saved from the IBM Quantum Platform Home dashboard
+instance="crn:v1:bluemix:public:quantum-computing:us-east:a/668f3955359d4baa9ae4a6e10c643e0b:9b353312-585e-495c-9fea-ef4f187572fc::", # Optional
+)

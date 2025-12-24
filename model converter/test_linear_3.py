@@ -39,7 +39,8 @@ output_size = 2
 model = SimpleNN(input_size, output_size)
 
 ### Solver
-solver = 'kipu-miray'
+## Options: adam, gurobi, kipu-miray, kipu-illay.
+solver = 'adam'
 bitdepth = 3
 
 # ----- 3. Create Datasets -----

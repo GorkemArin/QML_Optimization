@@ -8,7 +8,7 @@ from Solution_Wrapper import wrap_solution
 
 # Solvers
 from Gurobi_Solver import solve_gurobi
-from Kipu_Solver import solve_kipu
+from Kipu_Solver import solve_kipu ## works with python 3.13
 
 def get_time_diff(start: datetime, end: datetime) -> float:
     diff = end - start
@@ -67,10 +67,12 @@ class ModelBasedSolver:
 
 class ClassicalSolver:
     def train_gd(model, X, y):
+        time_train_start = datetime.datetime.now()
+        
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=0.01)
         # ----- 4. Training Loop -----
-        epochs = 50
+        epochs = 250
         losses = []
         for epoch in range(epochs):
             optimizer.zero_grad()           # reset gradients
@@ -87,6 +89,11 @@ class ClassicalSolver:
                 # for name, param in model.named_parameters():
                 #     if param.requires_grad:
                 #         print(f"{name} → mean: {param.data.mean():.4f}, grad mean: {param.grad.mean():.4f}")
+
+        time_train_end = datetime.datetime.now()
+        total_training_time = get_time_diff(time_train_start, time_train_end)
+        print(f'Total Training Time: {total_training_time:.3f} s')
+
         return losses    
     
 

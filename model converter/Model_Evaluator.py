@@ -14,6 +14,8 @@ def plot_double(x1, y1, training_cond, x2, y2, output_cond):
     axes[0].set_xlabel('X-axis')
     axes[0].set_ylabel('Y-axis')
 
+    axes[0].plot([-2, 2.5], [-5, 4], color='k', linestyle='-', linewidth=1)
+
     # ----- Second plot -----
     colors2 = ['blue' if output_cond[i] else 'red' for i in range(len(x2))]
     axes[1].scatter(x2, y2, c=colors2, alpha=0.7, edgecolors='k')
@@ -22,6 +24,8 @@ def plot_double(x1, y1, training_cond, x2, y2, output_cond):
     axes[1].set_title('Test Data')
     axes[1].set_xlabel('X-axis')
     axes[1].set_ylabel('Y-axis')
+
+    axes[1].plot([-2, 2.5], [-5, 4], color='k', linestyle='-', linewidth=1)
 
     plt.tight_layout()
     plt.show(block=True)

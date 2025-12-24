@@ -55,3 +55,10 @@ def solve_gurobi(qubo_model: dict) -> dict:
     # Extract solution
     solution = {v: int(round(x[v].X)) for v in vars_set}
     return solution
+
+def solve_gurobi_model(gurobi_model: Model):
+    gurobi_model.optimize()
+
+    # Extract solution
+    solution = {var.VarName: var.X for var in gurobi_model.getVars()}
+    return solution
