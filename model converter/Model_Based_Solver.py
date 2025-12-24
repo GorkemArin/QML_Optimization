@@ -4,10 +4,11 @@ import torch.nn as nn
 import torch.optim as optim
 
 from QUBO_Conversion import train_optimizer_QUBO
+from QCP_Conversion import train_optimizer_QCP
 from Solution_Wrapper import wrap_solution
 
 # Solvers
-from Gurobi_Solver import solve_gurobi
+from Gurobi_Solver import solve_gurobi_model
 from Kipu_Solver import solve_kipu ## works with python 3.13
 
 def get_time_diff(start: datetime, end: datetime) -> float:
@@ -39,24 +40,32 @@ class ModelBasedSolver:
             return self.status
 
         time_train_start = datetime.datetime.now()
-
-        qubo, loss_model = train_optimizer_QUBO(nn_model, X, Y, bitdepth)
+        
+        if solver == 'gurobi':
+            gurobi_model = train_optimizer_QCP(nn_model, X, Y, bitdepth)
+        else:
+            qubo, loss_model = train_optimizer_QUBO(nn_model, X, Y, bitdepth)
+        
         time_modeling_end = datetime.datetime.now()
 
         if solver == 'gurobi':
-            solution = solve_gurobi(qubo)
+            solution = solve_gurobi_model(gurobi_model)
         elif solver.startswith('kipu'):
             solution = solve_kipu(qubo, solver)
         else:
             self.status = 1
             self.error_message = f'Invalid solver: {solver}'
             return self.status
+        
         time_solving_end = datetime.datetime.now()
         
         wrap_solution(nn_model, solution, bitdepth)
+
         time_train_end = datetime.datetime.now()
 
-        self.decoded_model = loss_model.decode_sample(solution, vartype='BINARY')
+        if solver != 'gurobi':
+            self.decoded_model = loss_model.decode_sample(solution, vartype='BINARY')
+
         self.modeling_time = get_time_diff(time_train_start, time_modeling_end)
         self.solving_time = get_time_diff(time_modeling_end, time_solving_end)
         self.total_training_time = get_time_diff(time_train_start, time_train_end)

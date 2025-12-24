@@ -20,7 +20,9 @@ class SimpleNN(nn.Module):
         super().__init__()
         
         self.model = nn.Sequential(
-            nn.Linear(input_size, output_size)
+            nn.Linear(input_size, 4),
+            nn.Linear(4, output_size),
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -40,7 +42,7 @@ model = SimpleNN(input_size, output_size)
 
 ### Solver
 ## Options: adam, gurobi, kipu-miray, kipu-illay.
-solver = 'adam'
+solver = 'gurobi'
 bitdepth = 3
 
 # ----- 3. Create Datasets -----
